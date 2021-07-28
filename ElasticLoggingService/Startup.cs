@@ -1,8 +1,13 @@
+using System;
+using System.IO;
+using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 
 namespace ElasticLoggingService
@@ -46,6 +51,52 @@ namespace ElasticLoggingService
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+            });
+
+
+            var logger = app.ApplicationServices.GetRequiredService<ILogger<Startup>>();
+
+            app.Map("/map1", app =>
+            {
+                app.Run(async context =>
+                {
+                    var branchVer = context.Request.Query["branch"];
+
+                    logger.LogInformation("map1 ~ branch info = " + branchVer);
+                    await context.Response.WriteAsync($"Branch used = {branchVer}");
+                });
+            });
+
+            app.Map("/map2", app =>
+            {
+                app.Run(async context =>
+                {
+                    string body = string.Empty;
+                    var request = context.Request;
+                    using (var reader
+                                      = new StreamReader(request.Body, Encoding.UTF8, true, 1024, true))
+                    {
+                        body = await reader.ReadToEndAsync();
+                    }
+                    logger.LogInformation(body);
+                    Console.WriteLine(body);
+                });
+            });
+
+            app.Map("/map3", app =>
+            {
+                app.Run(async context =>
+                {
+                    try
+                    {
+                        throw new Exception("MyCustomError");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Unknown error");
+                    }
+                    await context.Response.WriteAsync("Bir hata oluştu");
+                });
             });
         }
     }
