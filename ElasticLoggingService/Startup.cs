@@ -40,7 +40,7 @@ namespace ElasticLoggingService
                 {
                     if (context.Request.Method != "POST")
                     {
-                        await WriteAsync(context, "the hethod http verb must be a POST!");
+                        await WriteAsync(context, "the method http verb must be a POST!");
                         return;
                     }
 
