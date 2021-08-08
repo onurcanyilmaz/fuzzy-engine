@@ -2,6 +2,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -30,11 +31,21 @@ namespace ElasticLoggingService
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            app.UseHttpsRedirection();
-
             var logger = app.ApplicationServices.GetRequiredService<ILogger<Startup>>();
 
-            app.Map("/Log", app =>
+            app.UseHttpsRedirection();
+
+            app.UseExceptionHandler(app => app.Run(async context =>
+            {
+                var exception = context.Features.Get<IExceptionHandlerPathFeature>().Error;
+                var result = JsonConvert.SerializeObject(new { error = exception.Message });
+                context.Response.ContentType = "application/json";
+                logger.Log(LogLevel.Critical, exception, exception.Message);
+                await WriteAsync(context, result);
+            }));
+
+
+            app.Map("/write-log", app =>
             {
                 app.Run(async context =>
                 {
@@ -59,28 +70,28 @@ namespace ElasticLoggingService
                         return;
                     }
 
-                    WriteLog(logObj);
+                    WriteRequestLog(logObj);
                     await WriteAsync(context, "succes!");
                 });
-
-                async Task WriteAsync(HttpContext context, string message)
-                {
-                    await context.Response.WriteAsync(message);
-                }
-
-                async Task<LogRequest> GetLogRequestObjectAsync(Stream body)
-                {
-                    using (var reader = new StreamReader(body, Encoding.UTF8, true, 1024, true))
-                    {
-                        return JsonConvert.DeserializeObject<LogRequest>(await reader.ReadToEndAsync());
-                    }
-                }
-
-                void WriteLog(LogRequest request)
-                {
-                    logger.Log(request.LogLevel, request.Exception, request.Message);
-                }
             });
+
+            async Task WriteAsync(HttpContext context, string message)
+            {
+                await context.Response.WriteAsync(message);
+            }
+
+            async Task<LogRequest> GetLogRequestObjectAsync(Stream body)
+            {
+                using (var reader = new StreamReader(body, Encoding.UTF8, true, 1024, true))
+                {
+                    return JsonConvert.DeserializeObject<LogRequest>(await reader.ReadToEndAsync());
+                }
+            }
+
+            void WriteRequestLog(LogRequest request)
+            {
+                logger.Log(request.LogLevel, request.Exception, request.Message);
+            }
         }
     }
 }
