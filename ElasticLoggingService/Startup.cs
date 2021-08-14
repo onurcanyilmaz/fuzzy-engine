@@ -40,7 +40,14 @@ namespace ElasticLoggingService
                 var exception = context.Features.Get<IExceptionHandlerPathFeature>().Error;
                 var result = JsonConvert.SerializeObject(new { error = exception.Message });
                 context.Response.ContentType = "application/json";
-                logger.Log(LogLevel.Critical, exception, exception.Message);
+
+                WriteExceptionRequestLog(new LogRequest
+                {
+                    Exception = exception,
+                    LogLevel = LogLevel.Critical,
+                    Message = exception.Message
+                });
+
                 await WriteAsync(context, result);
             }));
 
@@ -88,9 +95,14 @@ namespace ElasticLoggingService
                 }
             }
 
-            void WriteRequestLog(LogRequest request)
+            void WriteExceptionRequestLog(LogRequest request)
             {
                 logger.Log(request.LogLevel, request.Exception, request.Message);
+            }
+
+            void WriteRequestLog(LogRequest request)
+            {
+                logger.Log(request.LogLevel, request.Message);
             }
         }
     }
