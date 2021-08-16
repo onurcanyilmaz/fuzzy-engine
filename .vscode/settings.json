@@ -10,7 +10,6 @@
         "**/Properties": true,        
         "**/.sln": false,
         "**/.md": true,
-        "**/README.md": true,
         "**/.gitattributes": true,
         "**/.gitignore": true,
         "**/.vs": true
